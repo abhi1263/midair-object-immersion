@@ -13,10 +13,13 @@ using System.Threading.Tasks;
 public class ExperimentController : MonoBehaviour
 {
     Stack<String[]> controlFlowData = new Stack<String[]>();
-    Stack<String> currentObject = new Stack<String>();
+    Stack<String[]> currentObject = new Stack<String[]>();
+    Stack<String[]> retryQueue = new Stack<String[]>();
+
     public SteamVR_ActionSet m_ActionSet;
-    public SteamVR_Action_Boolean m_BooleanAction;
+    public SteamVR_Action_Boolean m_BooleanAction, touchpadtouch;
     public float frequency = 200f;
+
     TextMeshPro mText;
     AmplitudeModulationEmitter _emitter;
     private static bool Stop = false; //boolean to stop the emitter
@@ -25,16 +28,26 @@ public class ExperimentController : MonoBehaviour
     void Start()
     {
 
-        String[] arr1 = new String[2] { "ruler", "ruler.csv" };
-        String[] arr2 = new String[2] { "ruler", "ruler2.csv" };
-        String[] arr3 = new String[2] { "apple", "circle.csv" };
-        String[] arr4 = new String[2] { "apple", "cross.csv" };
+        String[] arr1 = new String[3] { "ruler", "ruler.csv", "start"};
+        String[] arr2 = new String[3] { "ruler", "curve-line.csv", "end"};
+        String[] arr3 = new String[3] { "apple", "circle.csv", "start" };
+        String[] arr4 = new String[3] { "apple", "cross.csv", "end" };
+        String[] arr5 = new String[3] { "croissant", "half-circle.csv", "start" };
+        String[] arr6 = new String[3] { "croissant", "circle.csv", "end" };
+        String[] arr7 = new String[3] { "bagel", "wavy-circle.csv", "start" };
+        String[] arr8 = new String[3] { "bagel", "ruler.csv", "end" };
+        
+        controlFlowData.Push(arr8);
+        controlFlowData.Push(arr7);
+        controlFlowData.Push(arr6);
+        controlFlowData.Push(arr5);
         controlFlowData.Push(arr4);
         controlFlowData.Push(arr3);
         controlFlowData.Push(arr2);
         controlFlowData.Push(arr1);
 
         m_BooleanAction = SteamVR_Actions._default.GrabPinch;
+        touchpadtouch = SteamVR_Actions._default.TouchpadTouch;
 
         mText = GameObject.Find("Text (TMP)").GetComponent<TextMeshPro>();
         mText.text = "Press trigger button to continue.";
@@ -47,26 +60,46 @@ public class ExperimentController : MonoBehaviour
         {
             ControlFlow();
         }
+        
     }
    
     private void ControlFlow() {
         if (_emitter == null)
         {
+            if(controlFlowData.Count == 0)
+            {
+                mText.text = "Thank you for taking part in the user study. You may now dismount the VR headset.";
+            }
             String[] currentFlow = controlFlowData.Pop();
+
+            
             String objectName = currentFlow[0];
             String coordinateFileName = currentFlow[1];
 
-            currentObject.Push(objectName);
+            print("Object: "+currentFlow[0]+"\nShape rendered: "+currentFlow[1]);
+
+            currentObject.Push(currentFlow);
 
             GameObject objectInHand = GameObject.Find(objectName);
             objectInHand.transform.position = new UnityEngine.Vector3(-1.20f, 0.80f, 2.44f);
             Task.Factory.StartNew(() => Render(coordinateFileName));
+            mText.text = "";
         }
-        else {
-            String objectName = currentObject.Pop();
-            GameObject objectInHand = GameObject.Find(objectName);
+        else 
+        {
+            String[] currentObjectInGame = currentObject.Pop();
+            GameObject objectInHand = GameObject.Find(currentObjectInGame[0]);
             objectInHand.transform.position = new UnityEngine.Vector3(-1.20f, 3.69f, 2.44f);
 
+            if (currentObjectInGame[2] == "end" && controlFlowData.Count != 0)
+            {
+                mText.text = "Please dismount the VR headset and fillout the questionnaire.\nAfter questionnaire is completed, press the trigger button to continue.";
+            }
+            else if (currentObjectInGame[2] == "start")
+            {
+                mText.text = "Relax and recollect the experience.\nWhenever you are ready press the trigger button to continue.";
+            }
+            
             Stop_Emitter();
         }
     }
